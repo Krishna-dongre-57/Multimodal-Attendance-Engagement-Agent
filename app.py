@@ -1,11 +1,8 @@
-import cv2
 import numpy as np
 import pandas as pd
 import streamlit as st
 
 from agent import get_recommendation
-from audio import AudioModule
-from audio_score import get_audio_engagement
 from dashboard.charts import attendance_chart, engagement_chart
 from dashboard.reports import generate_report
 from engagement import classify_engagement
@@ -17,7 +14,14 @@ from storage import (
 	save_attendance,
 	save_engagement,
 )
-from vision import VisionModule
+
+
+def audio_engagement_level(speech_ratio):
+	if speech_ratio >= 60:
+		return "High"
+	if speech_ratio >= 30:
+		return "Moderate"
+	return "Low"
 
 
 st.set_page_config(
@@ -108,6 +112,8 @@ else:
 	if st.sidebar.button("Record 5-second sample", use_container_width=True):
 		try:
 			with st.spinner("Recording classroom audio..."):
+				from audio import AudioModule
+
 				st.session_state.audio_result = AudioModule(duration=5).analyze_audio()
 		except Exception as error:
 			st.sidebar.error(f"Audio capture failed: {error}")
@@ -118,7 +124,7 @@ else:
 		st.sidebar.metric("Speech ratio", f"{audio_result['speech_ratio']}%")
 		st.sidebar.caption(
 			f"Noise {audio_result['noise_level']}% · "
-			f"{get_audio_engagement(audio_score)} participation"
+			f"{audio_engagement_level(audio_score)} participation"
 		)
 	else:
 		audio_score = 68
@@ -243,6 +249,9 @@ with attendance_tab:
 		camera_snapshot = st.camera_input("Capture a classroom snapshot")
 		if camera_snapshot and st.button("Analyze faces in snapshot"):
 			try:
+				import cv2
+				from vision import VisionModule
+
 				image = cv2.imdecode(
 					np.frombuffer(camera_snapshot.getvalue(), dtype=np.uint8),
 					cv2.IMREAD_COLOR,
